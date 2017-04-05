@@ -30,7 +30,7 @@ dependencies {
 }
 
 ext {
-    revealjsVersion = '2.6.2'
+    revealjsVersion = '3.4.1'
     asciidoctorBackendVersion = 'master'
     downloadDir = new File(buildDir, 'download')
     templateDir = new File(downloadDir, 'templates')
@@ -56,18 +56,31 @@ task download {
     }
 }
 
-task copyTheme(type: Copy) {
-    dependsOn download
+task copyReveal(type: Copy) {
     from fileTree("$revealJsDir/reveal.js-${revealjsVersion}")
     into revealJsDir
+}
+
+task copyTheme(type: Copy) {
     from fileTree('src/docs/theme')
     into file("$revealJsDir/css/theme")
+}
+
+task copyFonts(type: Copy) {
+    from fileTree('src/docs/fonts')
+    into file("$revealJsDir/css/fonts")
 }
 
 task copyScreencasts(type: Copy) {
     from fileTree('src/docs/asciidoc/screencast')
     into file("$buildDir/asciidoc/revealjs")
 }
+
+task copyAll {
+    dependsOn copyReveal, copyTheme, copyFonts, copyScreencasts
+}
+
+tasks.withType(Copy) { dependsOn download }
 
 download {
     description "Download extra deckjs/reveal.js resources"

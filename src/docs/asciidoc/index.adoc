@@ -1,4 +1,4 @@
-= Extremely fast builds with Gradle 3
+= Extremely fast builds with Gradle 4
 Cédric Champeau (@CedricChampeau), Gradle
 2017-02-28
 :revnumber: {project-version}
@@ -51,19 +51,17 @@ Misc OSS contribs (Gradle plugins, deck2pdf, jlangdetect, ...)'''
 == Agenda
 
 * The Gradle Daemon
+* Continuous builds
 * Profiling
 * Incremental builds
 * Incremental compilation
-* Continuous builds
 * Composite builds
 * Build cache
 
-== Gradle != Android
-
 == What is Gradle?
 
-* A build tool
-* Cloud Services
+* A multi-purpose build tool
+* Gradle Enterprise : build analytics
 
 == The Gradle daemon
 
@@ -76,27 +74,27 @@ Misc OSS contribs (Gradle plugins, deck2pdf, jlangdetect, ...)'''
 
 === Cold daemon
 
-image::daemon-keynote-cold.gif[]
+image::daemon-keynote-cold.gif[scaledwidth="25%"]
 
 === Warm daemon
 
-image::daemon-keynote-warm.gif[]
+image::daemon-keynote-warm.gif[scaledwidth="25%"]
 
-== Profiling a build
+== Continuous builds
 
-`gradle --profile`
+* Gradle watches for changes in task inputs
+* Re-executes tasks as changes occur
+* Enabled with `-t`
 
-* Generates a report in the build directory
-* Limited insight
-* Not easily shareable
-* But can already give precious information
+```
+gradle -t asciidoctor
+```
 
 == Build scans
 
-[cols="50a,50a"]
+[cols="60a,40a"]
 |===
 |
-* First member of the Cloud Services family
 * Insights into your build
 * View and share via URL
 * Debug, optimize and refine
@@ -107,47 +105,11 @@ image::daemon-keynote-warm.gif[]
 
 == Build scan demo
 
-https://scans.gradle.com/s/cmihj7rsqszle
-https://scans.gradle.com/s/cxwz7amaxhcdc
-https://scans.gradle.com/s/ly5tnqtuoqlwe
+https://scans.gradle.com/s/cmihj7rsqszle (Groovy)
+https://scans.gradle.com/s/cxwz7amaxhcdc (This talk)
+https://scans.gradle.com/s/ly5tnqtuoqlwe (Gradle serial)
 https://scans.gradle.com/s/7ftlptyifoqna (Android)
-
-== Creating a build scan
-
-=== Apply the build scan plugin
-
-[source,groovy]
-----
-plugins {
-    id 'com.gradle.build-scan' version '1.6'
-}
-
-buildScan {
-    licenseAgreementUrl = 'https://gradle.com/terms-of-service'
-    licenseAgree = 'yes'
-}
-----
-
-=== Run the build
-
-```
-./gradlew --scan build
-```
-
-=== Click on the link
-
-```
-:jrubyPrepareGems
-:asciidoctor UP-TO-DATE
-
-BUILD SUCCESSFUL
-
-Total time: 1.132 secs
-
-Publishing build information...
-https://gradle.com/s/v2f5knnujnsx2
-
-```
+http://localhost:5050/s/jzgcf2gxxrobu (Gradle parallel)
 
 == Incremental builds
 
@@ -196,7 +158,9 @@ File getJarFile() { ... }
 * and their dependencies
 * Language specific
 
-=== Gradle has support for incremental compilation of Java
+=== Incremental compilation
+
+Gradle has support for incremental compilation of Java
 
 ```
 compileJava {
@@ -205,21 +169,13 @@ compileJava {
 }
 ```
 
+=== Incremental compilation
+
 image::gradle-3.4-perf.png[]
 
 == Gradle 3.4
 
 https://blog.gradle.org/incremental-compiler-avoidance
-
-== Continuous builds
-
-* Gradle watches for changes in task inputs
-* Re-executes tasks as changes occur
-* Enabled with `-t`
-
-```
-gradle -t asciidoctor
-```
 
 == Compile avoidance
 
@@ -238,7 +194,7 @@ import com.google.common.collect.Iterables;
 
 ...
 
-public Set<String> getNames(Set<Foo> persons) {
+public Set<String> getNames(Set<Person> persons) {
    return ImmutableSet.copyOf(Iterables.transform(persons, TO_NAME))
 }
 ----
@@ -263,9 +219,16 @@ import com.google.common.collect.Iterables; // internal dependency
 
 ...
 
-public Set<String> getNames(Set<Foo> persons) {
+public Set<String> getNames(Set<Person> persons) {
    return ImmutableSet.copyOf(Iterables.transform(persons, TO_NAME))
 }
+----
+
+=== The Java Library Plugin
+
+[source,groovy]
+----
+apply plugin: 'java-library' // instead of 'java'
 ----
 
 === Separating API from implementation
@@ -289,12 +252,17 @@ dependencies {
 ** Each project can live in its own repository
 ** Each project has its own Gradle build
 ** Composition unites them through _dependency resolution_
+
+== Composite builds
+
 * _Split_ monolithic projects
 ** For large multiproject builds, allows splitting them into several pieces
 ** Each piece can be versioned independently
 ** Developers can _choose_ what subprojects they care about
 
-== What's next?
+== Composite builds demo time!
+
+== Gradle 3.5+
 
 == Build cache
 
@@ -303,14 +271,64 @@ dependencies {
 * Share binaries between projects on a network
 * Backend agnostic
 
+== Enabling the build cache
+
+From CLI
+
+```
+./gradlew --build-cache <some tasks>
+```
+
+Globally
+
+[source,bash]
+.gradle.properties
+----
+org.gradle.caching=true
+----
+
+== What to expect?
+
+* Gradle clean build, http://localhost:5050/s/jzgcf2gxxrobu[no cache]: 2m 14s
+* Gradle clean build, http://localhost:5050/s/fyszpj5damoxg[cached]: 15.1s
+
+== Enable it on CI!
+
+* Dramatically reduces feedback loop time
+* Can separate push and pull
+
+[source,groovy]
+----
+ext.isCiServer = System.getenv().containsKey("CI")
+
+buildCache {
+    local {
+        enabled = !isCiServer
+    }
+    remote(HttpBuildCache) {
+        url = 'https://example.com:8123/build-cache/'
+        push = isCiServer
+    }
+}
+----
+
 == Build cache use cases
 
-* Long compile tasks
+* Medium to large multi-projects
 * Bisecting
-* Continuous integration
-* Green Earth ;)
+* Multiple checkouts of same project on local machine
 
-== What about Android?
+== What's next?
+
+* Parallel by default
+** Parallel dependency resolution
+** Parallel execution of tasks
+** Intra-task parallelism
+* Open API for worker threads/process
+
+== Performance in larger ecosystem
+
+=== What about Android?
 
 http://tools.android.com/tech-docs/new-build-system/2-5-alpha-gradle-plugin
 
@@ -320,11 +338,11 @@ image::android-25-preview.png[]
 
 https://gradle.github.io/performance-guide/
 
-image::gradle-vs-maven-clean-build.png[]
+image::perf-graph.png[]
 
 == Thank you!
 
-* Slides and code : https://github.com/melix/paris-android-ug-fast-builds
+* Slides and code : https://github.com/melix/devoxxfr-fast-builds
 * Gradle documentation : http://gradle.org/documentation/
 * Follow me: http://twitter.com/CedricChampeau[@CedricChampeau]
 
